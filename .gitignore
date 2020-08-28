@@ -1,3 +1,4 @@
 pg_dump/
 venv/
 dump.sh
+.idea/
