@@ -42,12 +42,6 @@ class Crawler:
             if self.connection:
                 print("Failed to insert record into articles table", error)
 
-        finally:
-            # closing database connection.
-            if self.connection:
-                self.cursor.close()
-                self.connection.close()
-                print("PostgreSQL connection is closed")
 
     def get_articles(self):
         try:
@@ -65,3 +59,9 @@ class Crawler:
                 self.cursor.close()
                 self.connection.close()
                 print("PostgreSQL connection is closed")
+
+    def close_connection(self):
+        if self.connection:
+            self.cursor.close()
+            self.connection.close()
+            print("PostgreSQL connection is closed")
