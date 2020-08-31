@@ -24,11 +24,10 @@ class Summarizer:
 
     def generate_summary(self, src_text):
         generated_summaries = {}
-
         for model_name in self.models:
             tokenizer = PegasusTokenizer.from_pretrained(model_name)
             model = PegasusForConditionalGeneration.from_pretrained(model_name).to(self.torch_device)
-            batch = tokenizer.prepare_seq2seq_batch(src_text, truncation=True, padding='longest').to(self.torch_device)
+            batch = tokenizer.prepare_seq2seq_batch([src_text], truncation=True, padding='longest').to(self.torch_device)
             generated_summary = tokenizer.batch_decode(model.generate(**batch), skip_special_tokens=True)
             generated_summaries[model_name] = generated_summary
             del model, tokenizer
