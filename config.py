@@ -1,5 +1,5 @@
 hyper_params = {
-    'pegasus_models': ['google/pegasus-xsum']
+    'pegasus_models': ['google/pegasus-xsum', 'google/pegasus-newsroom']
 }
 
 

@@ -1,21 +1,9 @@
 from transformers import PegasusForConditionalGeneration, PegasusTokenizer
 import torch
 
-import psycopg2
-
-
-def model_name_to_db_column(model_name):
-    return model_name.replace('google/', '').replace('-', '_')
-
 
 class Summarizer:
     def __init__(self, model_name):
-        self.connection = psycopg2.connect(user="patterson",
-                                      password="jeramywu",
-                                      host="localhost",
-                                      port="5432",
-                                      database="patterson")
-        self.cursor = self.connection.cursor()
         self.model_name = model_name
         self.torch_device = 'cuda' if torch.cuda.is_available() else 'cpu'
         print('training on', self.torch_device)
@@ -27,17 +15,6 @@ class Summarizer:
             self.torch_device)
         generated_summary = self.tokenizer.batch_decode(self.model.generate(**batch), skip_special_tokens=True)
         return generated_summary
-
-    def update_to_db(self, list_of_summaries):
-        column_name = model_name_to_db_column(self.model_name)
-        sql = """
-                INSERT INTO articles (article_id, column_name) VALUES (%s, %s)
-                ON CONFLICT (article_id)
-                DO
-                    UPDATE SET column_name = column_value
-                    WHERE article_id = article_id
-        """
-        self.cursor.executemany(sql, list_of_summaries)
 
 
 # src_text = [

@@ -4,6 +4,7 @@ import time
 
 from config import hyper_params
 from summarizer import Summarizer
+from postgres import PostGres
 
 from bs4 import BeautifulSoup as soup
 from urllib.request import urlopen
@@ -48,16 +49,23 @@ def get_google_news():
 
 def summarize():
     f = open('test.txt')
+    summarized_dict = {}
     start_time = time.time()
     for model in hyper_params['pegasus_models']:
-        summarized_articles = []
         summarizer = Summarizer(model)
+        count = 0
         for article_id, content in crawler.get_articles_to_summarize():
-            summarized_articles.append((article_id, summarizer.generate_summary(content)))
-        summarizer.update_to_db(summarized_articles)
+            if count == 6:
+                break
+            if article_id not in summarized_dict:
+                summarized_dict[article_id] = {}
+            summarized_dict[article_id][model] = summarizer.generate_summary(content)
+            count = count + 1
         del summarizer
-    print("--- %s seconds ---" % (time.time() - start_time))
-    f.write(str(summarized_articles))
+    print(summarized_dict)
+    db = PostGres()
+    # print("--- %s seconds ---" % (time.time() - start_time))
+    # f.write(str(summarized_articles))
 
 
 if __name__ == "__main__":
