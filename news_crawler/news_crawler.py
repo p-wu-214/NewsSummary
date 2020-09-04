@@ -47,6 +47,9 @@ class NewsCrawler:
             if self.connection:
                 print("Failed to insert record into articles table", error)
 
+
+
+
     def get_articles_to_summarize(self):
         query_filename = 'summarizer/get_articles_to_summarize.sql'
         try:

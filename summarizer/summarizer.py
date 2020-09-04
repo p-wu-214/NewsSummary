@@ -1,37 +1,43 @@
-from config import hyper_params
-
 from transformers import PegasusForConditionalGeneration, PegasusTokenizer
 import torch
 
+import psycopg2
 
-#
-# result = {}
-#
-# model_name = 'google/pegasus-gigaword'
-# torch_device = 'cuda' if torch.cuda.is_available() else 'cpu'
-# tokenizer = PegasusTokenizer.from_pretrained(model_name)
-# model = PegasusForConditionalGeneration.from_pretrained(model_name).to(torch_device)
-# batch = tokenizer.prepare_seq2seq_batch(src_text, truncation=True, padding='longest').to(torch_device)
-# translated = model.generate(**batch)
-# tgt_text = tokenizer.batch_decode(translated, skip_special_tokens=True)
-# result['gigaword'] = tgt_text[0]
+
+def model_name_to_db_column(model_name):
+    return model_name.replace('google/', '').replace('-', '_')
+
 
 class Summarizer:
-    def __init__(self):
+    def __init__(self, model_name):
+        self.connection = psycopg2.connect(user="patterson",
+                                      password="jeramywu",
+                                      host="localhost",
+                                      port="5432",
+                                      database="patterson")
+        self.cursor = self.connection.cursor()
+        self.model_name = model_name
         self.torch_device = 'cuda' if torch.cuda.is_available() else 'cpu'
         print('training on', self.torch_device)
-        self.models = hyper_params['pegasus_models']
+        self.model = PegasusForConditionalGeneration.from_pretrained(model_name).to(self.torch_device)
+        self.tokenizer = PegasusTokenizer.from_pretrained(model_name)
 
     def generate_summary(self, src_text):
-        generated_summaries = {}
-        for model_name in self.models:
-            tokenizer = PegasusTokenizer.from_pretrained(model_name)
-            model = PegasusForConditionalGeneration.from_pretrained(model_name).to(self.torch_device)
-            batch = tokenizer.prepare_seq2seq_batch([src_text], truncation=True, padding='longest').to(self.torch_device)
-            generated_summary = tokenizer.batch_decode(model.generate(**batch), skip_special_tokens=True)
-            generated_summaries[model_name] = generated_summary
-            del model, tokenizer
-        return generated_summaries
+        batch = self.tokenizer.prepare_seq2seq_batch([src_text], truncation=True, padding='longest').to(
+            self.torch_device)
+        generated_summary = self.tokenizer.batch_decode(self.model.generate(**batch), skip_special_tokens=True)
+        return generated_summary
+
+    def update_to_db(self, list_of_summaries):
+        column_name = model_name_to_db_column(self.model_name)
+        sql = """
+                INSERT INTO articles (article_id, column_name) VALUES (%s, %s)
+                ON CONFLICT (article_id)
+                DO
+                    UPDATE SET column_name = column_value
+                    WHERE article_id = article_id
+        """
+        self.cursor.executemany(sql, list_of_summaries)
 
 
 # src_text = [
