@@ -3,15 +3,12 @@ import argparse
 import time
 
 from config import hyper_params
+
+import news_crawler
 from summarizer import Summarizer
 from postgres import PostGres
 
-from bs4 import BeautifulSoup as soup
-from urllib.request import urlopen
-
-from news_crawler import NewsCrawler
-
-crawler = NewsCrawler()
+db = PostGres()
 
 
 def main():
@@ -20,7 +17,7 @@ def main():
                         dest='mode', required=True, type=str)
     args = parser.parse_args()
     if args.mode == 'crawl':
-        get_google_news()
+        crawl()
         return
     if args.mode == 'summarize':
         summarize()
@@ -28,24 +25,9 @@ def main():
     else:
         parser.print_help()
 
-
-def get_links():
-    news_url = "https://news.google.com/news/rss"
-    client = urlopen(news_url)
-    xml_page = client.read()
-    client.close()
-
-    soup_page = soup(xml_page, "xml")
-    news_list = soup_page.findAll("item")
-
-    return news_list
-
-
-def get_google_news():
-    news_list = get_links()
-    crawler.google_news_to_db(news_list)
-    crawler.close_connection()
-
+def crawl():
+    articles = news_crawler.get_google_news()
+    db.articles_to_db(articles)
 
 def summarize():
     f = open('test.txt')
@@ -54,7 +36,7 @@ def summarize():
     for model in hyper_params['pegasus_models']:
         summarizer = Summarizer(model)
         count = 0
-        for article_id, content in crawler.get_articles_to_summarize():
+        for article_id, content in db.get_articles_to_summarize():
             if count == 6:
                 break
             if article_id not in summarized_dict:
@@ -63,7 +45,6 @@ def summarize():
             count = count + 1
         del summarizer
     print(summarized_dict)
-    db = PostGres()
     # print("--- %s seconds ---" % (time.time() - start_time))
     # f.write(str(summarized_articles))
 
