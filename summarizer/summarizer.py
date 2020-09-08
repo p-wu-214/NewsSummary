@@ -11,10 +11,10 @@ def model_name_to_db_column(model_name):
 class Summarizer:
     def __init__(self, model_name):
         self.connection = psycopg2.connect(user="patterson",
-                                      password="jeramywu",
-                                      host="localhost",
-                                      port="5432",
-                                      database="patterson")
+                                           password="jeramywu0214",
+                                           host="localhost",
+                                           port="5432",
+                                           database="patterson")
         self.cursor = self.connection.cursor()
         self.model_name = model_name
         self.torch_device = 'cuda' if torch.cuda.is_available() else 'cpu'

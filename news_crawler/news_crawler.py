@@ -10,7 +10,7 @@ class NewsCrawler:
 
     def __init__(self):
         self.connection = psycopg2.connect(user="patterson",
-                                           password="jeramywu",
+                                           password="jeramywu0214",
                                            host="localhost",
                                            port="5432",
                                            database="patterson")

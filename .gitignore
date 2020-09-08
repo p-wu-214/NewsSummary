@@ -2,3 +2,4 @@ pg_dump/
 venv/
 dump.sh
 .idea/
+__pycache__/
