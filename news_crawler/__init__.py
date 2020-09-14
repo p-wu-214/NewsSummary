@@ -1,1 +1,1 @@
-from .news_crawler import NewsCrawler
+from .news_crawler import get_google_news

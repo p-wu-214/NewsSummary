@@ -1,16 +1,15 @@
 import argparse
 
-import time
-
 from config import hyper_params
+
+import news_crawler
+import torch
 from summarizer import Summarizer
+from postgres import PostGres
 
-from bs4 import BeautifulSoup as soup
-from urllib.request import urlopen
+import subprocess as sp
 
-from news_crawler import NewsCrawler
-
-crawler = NewsCrawler()
+db = PostGres()
 
 
 def main():
@@ -19,7 +18,7 @@ def main():
                         dest='mode', required=True, type=str)
     args = parser.parse_args()
     if args.mode == 'crawl':
-        get_google_news()
+        crawl()
         return
     if args.mode == 'summarize':
         summarize()
@@ -27,38 +26,40 @@ def main():
     else:
         parser.print_help()
 
-
-def get_links():
-    news_url = "https://news.google.com/news/rss"
-    client = urlopen(news_url)
-    xml_page = client.read()
-    client.close()
-
-    soup_page = soup(xml_page, "xml")
-    news_list = soup_page.findAll("item")
-
-    return news_list
-
-
-def get_google_news():
-    news_list = get_links()
-    crawler.google_news_to_db(news_list)
-    crawler.close_connection()
-
+def crawl():
+    articles = news_crawler.get_google_news()
+    db.articles_to_db(articles)
 
 def summarize():
-    f = open('test.txt')
-    start_time = time.time()
+    torch_device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    summarized_dict = {}
+    summarizer_list = []
     for model in hyper_params['pegasus_models']:
-        summarized_articles = []
-        summarizer = Summarizer(model)
-        for article_id, content in crawler.get_articles_to_summarize():
-            summarized_articles.append((article_id, summarizer.generate_summary(content)))
-        summarizer.update_to_db(summarized_articles)
+        print('creating model:', model)
+        summarizer_list.append(Summarizer(model, device=torch_device))
+    # some kind of system where to manage transferring in and out between cuda and cpu
+    for summarizer in summarizer_list:
+        count = 0
+        summarizer.to_device()
+        print('summarizing for:', summarizer.model_name)
+        for article_id, content in db.get_articles_to_summarize():
+            if article_id not in summarized_dict:
+                summarized_dict[article_id] = {}
+            summarized_dict[article_id][summarizer.model_name] = summarizer.generate_summary_on_device(content)
+        summarizer.remove()
         del summarizer
-    print("--- %s seconds ---" % (time.time() - start_time))
-    f.write(str(summarized_articles))
+        torch.cuda.empty_cache()
+    db.summaries_to_db(summarized_dict)
 
+def get_gpu_memory():
+  _output_to_list = lambda x: x.decode('ascii').split('\n')[:-1]
+
+  COMMAND = "nvidia-smi --query-gpu=memory.free --format=csv"
+  memory_free_info = _output_to_list(sp.check_output(COMMAND.split()))[1:]
+  memory_free_values = [int(x.split()[0]) for i, x in enumerate(memory_free_info)]
+  return memory_free_values
+
+get_gpu_memory()
 
 if __name__ == "__main__":
     main()
